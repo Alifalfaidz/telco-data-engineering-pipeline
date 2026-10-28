@@ -1,89 +1,97 @@
-# Telco Data Engineering Pipeline — End-to-End (Synthetic Demo)
+# Telco Data Engineering Pipeline
 
-A runnable **Data Engineering portfolio project**, created as a practical extension of a Week 4 mini project. It demonstrates how data from **prepaid transactions, postpaid billing, and digital-app usage** can flow through a local **ELT pipeline** into a **SQLite Star Schema**, business reporting metrics, and an **AI-ready customer feature dataset**.
+A small, end-to-end Data Engineering project built with Python and SQLite.
 
-> **Scope and honesty:** 100% synthetic data. This is **not** Telkomsel production infrastructure, live telecom data, or actual real-time streaming. The 15-minute ingestion windows are **replayed within a single Python run**. No scheduler, broker, cloud deployment, or trained churn classifier is included.
+I made this project as part of my Week 4 Data Engineering practice. The idea was to work through a common problem in a telecom company: customer, transaction, billing, and app-usage data often come from different systems, but they need to be brought together before anyone can use them for reporting or machine learning.
 
-## Architecture
+Here, I use **synthetic data** to build that flow locally—from generating CSV files to preparing customer features that could later be used for churn prediction.
+
+## How it works
 
 ![End-to-end pipeline](docs/end_to_end_flow.png)
 
-Data sources → CSV ingestion → `raw_events` → cleaning / quarantine → conformed dimensions and facts → customer features for a future churn model; pipeline metadata and quality alerts are written to SQLite and JSON.
+The pipeline follows a few main steps:
 
-## Tech stack
+1. **Generate sample data** for customers, prepaid transactions, postpaid billing, and app usage.
+2. **Ingest the CSV files** into a raw layer in SQLite.
+3. **Check data quality**, including duplicates, invalid values, and inconsistent records. Invalid records are logged separately instead of silently entering the reporting tables.
+4. **Build a Data Warehouse** using dimension and fact tables.
+5. **Prepare customer features**, such as recent usage, top-up activity, and payment behavior.
+6. **Record each pipeline run**, along with data-quality results and alerts.
 
-**Python 3.10+ (standard library only)**, **SQLite / SQL**, `csv`, `sqlite3`, `unittest`. No `pip install` necessary.
+The warehouse design is shown here:
 
-## Quick start
+![Data Warehouse model](docs/dwh_model.png)
 
-From the repository root:
+## Tools used
+
+- **Python 3.10+** for data generation, ingestion, and transformation
+- **SQLite and SQL** for the raw layer, Data Warehouse, and reporting queries
+- **Python `unittest`** for automated tests
+
+Everything runs locally using Python's standard library, so no extra packages are required.
+
+## Running the project
+
+Open a terminal in the repository folder and run:
 
 ```bash
-python run_pipeline.py generate --run-date 2026-10-24
-python run_pipeline.py run --run-date 2026-10-24
-python -m unittest discover -s tests -v
+python3 run_pipeline.py generate --run-date 2026-10-24
+python3 run_pipeline.py run --run-date 2026-10-24
+python3 -m unittest discover -s tests -v
 ```
 
-The first command regenerates deterministic CSV inputs with a fixed seed. The second creates `outputs/telco_dwh.sqlite`, `outputs/customer_features.csv`, and `outputs/run_report.json`. The third runs the automated test suite. On Windows, `python` may be `py`.
+The commands generate the sample CSV files, run the pipeline, and execute the tests. If your computer uses `python` instead of `python3`, use that command instead.
 
-To verify reruns are safe, execute the `run` command again with the same inputs. `inserted_raw` should become **0** and fact-table row counts should stay the same. Run counters grow intentionally because every execution is logged. To reproduce the first-run monitoring report, remove the generated SQLite DB and JSON/CSV outputs before running once; **do not delete any real database**.
+After running the pipeline, the main outputs are:
 
-## Reproduced local result (fixed seed; 240 synthetic customers)
+- `outputs/telco_dwh.sqlite` — the local Data Warehouse
+- `outputs/customer_features.csv` — customer-level features prepared for future ML work
+- `outputs/run_report.json` — pipeline results, data-quality checks, and alerts
 
-| Measurement | Observed | Interpretation |
-|---|---:|---|
-| CSV input rows | 12,138 | Includes duplicate and deliberately malformed examples |
-| Unique rows in raw | 12,136 | Two duplicate business keys ignored |
-| Invalid source records | 4 | Quarantined: negative usage, unknown ID, bad date, missing ID |
-| Customer dimension | 240 | One row per synthetic customer |
-| Prepaid fact | 1,105 | One row per successful top-up transaction |
-| Postpaid fact | 84 | One row per invoice |
-| App usage daily fact | 9,116 | One row per customer × day × app category |
-| Customer features | 240 | 14 numeric features, 1 as-of date, and 1 synthetic ID |
-| Foreign key checks | PASS | All fact references valid |
-| Alerts | 1 warning | Quarantined records; pipeline still successful |
-| Simulated freshness | 5 minutes | Difference between source event and *synthetic cutoff*, not live latency |
+There are also example outputs in [`outputs/sample/`](outputs/sample/), so you can explore the results without running the project first.
 
-The pipeline-reported success rate is 100% after **one local successful run**; this is *not* an estimate of production reliability.
+## Results from my local run
 
-## Project structure
+I tested the pipeline using **240 synthetic customers** and the fixed date `2026-10-24`.
+
+| What I checked | Result |
+|---|---:|
+| Input records processed | 12,138 |
+| Unique records stored in the raw layer | 12,136 |
+| Invalid records quarantined | 4 |
+| Customer records in the warehouse | 240 |
+| Prepaid transaction records | 1,105 |
+| Postpaid billing records | 84 |
+| Daily app-usage records | 9,116 |
+| Customer feature rows | 240 |
+| Automated tests passed | 6/6 |
+
+I also ran the pipeline twice with the same input. On the second run, `inserted_raw` was **0**, and the warehouse row counts stayed the same. This was my way of checking **idempotency**: processing the same input again should not create duplicate records.
+
+The run did produce a warning for four invalid usage records. That was expected—the sample dataset includes deliberately invalid examples to test the quality checks. The pipeline continued processing the valid records.
+
+## Project files
 
 ```text
-.
-├── run_pipeline.py                 # CLI entry point
-├── telco_pipeline/
-│   ├── generator.py                # deterministic, synthetic CSV generation
-│   └── pipeline.py                 # ingestion, quality, DWH, feature preparation
-├── sql/schema.sql                  # raw, dimensions, facts, quality + monitoring tables
-├── data/synthetic/                # generated example input CSV files
-├── outputs/sample/                # verified example outputs, including sample SQLite DB
-├── docs/
-│   ├── end_to_end_flow.png         # conceptual architecture (scope explained below)
-│   ├── dwh_model.png               # conceptual star schema diagram
-│   ├── data_dictionary.md          # tables, grain, feature meanings
-│   └── runbook.md                 # failure handling and operation
-├── sql/sample_queries.sql         # sample BI queries
-└── tests/test_pipeline.py         # 6 unittest scenarios
+telco-data-engineering-pipeline/
+├── data/synthetic/        # Generated CSV inputs
+├── docs/                  # Architecture, data dictionary, and runbook
+├── outputs/sample/        # Example pipeline outputs
+├── sql/                   # Warehouse schema and sample queries
+├── telco_pipeline/        # Data generator and pipeline logic
+├── tests/                 # Automated tests
+├── run_pipeline.py        # Main command-line entry point
+├── requirements.txt
+└── README.md
 ```
 
-The architecture diagrams represent a scalable **target design**, not a claim that all its systems exist in the code. Specifically, raw staging is modeled by SQLite `raw_events` rather than a cloud data lake, an application-level model is not trained, and true incremental production processing is left as an improvement.
+For more details, see the [data dictionary](docs/data_dictionary.md), [sample SQL queries](sql/sample_queries.sql), and [runbook](docs/runbook.md).
 
-## Operational design
+## What this project does not cover (yet)
 
-- **Idempotency:** ingestion `PRIMARY KEY (source, record_key)`; fact business-key uniqueness; grouped usage facts rebuilt from raw history on rerun.
-- **Validation:** customer/plan matching, nonnegative numeric values, timestamps no later than the synthetic cutoff, invoice amount consistency, foreign-key check.
-- **Quarantine:** invalid raw source record IDs and reasons are recorded in `data_quality_issues`; valid records still flow.
-- **Monitoring:** `pipeline_runs` table, `alerts` table, and `run_report.json`. Warning when source records are quarantined; critical alert if invalid ratio exceeds a **proposed** 1%; warning if *simulated* freshness is over **proposed** 120 minutes.
-- **Reliability limits:** snapshot processing scans raw usage history on each run, meaning it is appropriate for a small reproducible demo, **not high-volume production**; production needs affected-partition incremental upserts, scheduled jobs, privacy/access control, and orchestration.
+This is a **local learning project**, not a production Telco system. All records are synthetic. The 15-minute ingestion windows are simulated within a Python run, not streamed from a live service. There is no cloud deployment, scheduler, or message broker.
 
-## Data and model boundary
+The output is **AI-ready feature data**, not an AI model. I haven't trained a churn classifier in this repository, and the data doesn't include verified churn labels. That would be a separate step, along with time-based evaluation and model monitoring.
 
-`customer_features.csv` contains only features known at `as_of_date` (usage 7 days, previous 7 days, tenure, prepaid top-up 30 days, postpaid payment ratio, etc.). **No churn ground-truth label, training job, or predicted probability is generated**. For a supervised churn model, Data Science must supply a business-approved outcome label from a future observation window, split training/testing by time, and validate drift and metrics. Never train on the synthetic customer ID as a feature.
-
-Top-up amount and billed amount are **not identical to recognized revenue**. They remain separate measurements.
-
-## Disclosure / intended use
-
-Suitable for explaining architecture, SQL modeling, data preparation, and testable operational controls in a junior Data Engineering portfolio. Not suitable for customer outreach, finance reporting, production operation, or decisions about real customers.
-
-See [data dictionary](docs/data_dictionary.md) and [incident runbook](docs/runbook.md) for further details.
+If I extend this project, my next focus would be incremental processing, automated scheduling, and a more realistic deployment setup.
