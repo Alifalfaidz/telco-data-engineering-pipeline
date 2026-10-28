@@ -1,0 +1,81 @@
+{
+  "project": "Telco Data Engineering Pipeline (synthetic local demo)",
+  "run_id": "b609ed665813",
+  "as_of_date": "2026-10-24",
+  "status": "SUCCESS",
+  "duration_ms": 393,
+  "pipeline_success_rate_pct": 100.0,
+  "pipeline_runs_observed": 1,
+  "ingestion": {
+    "input_rows": 12138,
+    "inserted_raw": 12136,
+    "duplicate_raw": 2,
+    "simulated_microbatch_windows_and_batch_jobs": 1967,
+    "sources": {
+      "customers": {
+        "read": 240,
+        "new_raw": 240,
+        "duplicate_or_replay": 0
+      },
+      "prepaid": {
+        "read": 1106,
+        "new_raw": 1105,
+        "duplicate_or_replay": 1
+      },
+      "postpaid": {
+        "read": 85,
+        "new_raw": 84,
+        "duplicate_or_replay": 1
+      },
+      "usage": {
+        "read": 10707,
+        "new_raw": 10707,
+        "duplicate_or_replay": 0
+      }
+    }
+  },
+  "raw_unique_rows": {
+    "customers": 240,
+    "prepaid": 1105,
+    "postpaid": 84,
+    "usage": 10707
+  },
+  "data_quality": {
+    "invalid_distinct_raw_records": 4,
+    "issues_new_or_existing": {
+      "INVALID_USAGE": 4
+    },
+    "valid_usage_events": 10703,
+    "fact_usage_daily_rows": 9116,
+    "latest_valid_usage": "2026-10-24T23:55:00",
+    "invalid_record_rate_pct": 0.033,
+    "foreign_key_check": "PASS"
+  },
+  "data_warehouse": {
+    "dim_customer": 240,
+    "fact_prepaid": 1105,
+    "fact_postpaid": 84,
+    "fact_usage_daily": 9116
+  },
+  "features": {
+    "rows": 240,
+    "feature_columns": 14,
+    "file": "customer_features.csv",
+    "supervised_churn_labels_included": false
+  },
+  "simulated_freshness_lag_minutes": 5.0,
+  "alerts": [
+    {
+      "level": "WARNING",
+      "code": "QUARANTINED_INPUT",
+      "message": "4 distinct invalid source records quarantined"
+    }
+  ],
+  "business_indicators": {
+    "successful_topup_value_idr": 52890000,
+    "total_amount_billed_idr": 10025000,
+    "total_usage_mb": 2979391.57,
+    "warning": "Top-up and billed amounts are not accounting revenue."
+  },
+  "implementation_scope": "CSV replay; 15-minute simulated buckets; SQLite raw/stars; snapshot usage aggregation; no orchestrator, actual stream broker or trained ML model."
+}
