@@ -8,3 +8,4 @@ outputs/*.sqlite
 outputs/*.csv
 outputs/*.json
 !outputs/sample/
+.venv/
